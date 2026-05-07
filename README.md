@@ -50,6 +50,7 @@ Her output videosunun olusum sirasi:
 - `run-summary.json`
 - `pipeline-master-log.jsonl`
 - `input/downloaded-archive.txt`
+- `output/merge-notes.md` (cikti videosu + kaynak linkler + aciklamalar)
 
 ## Notlar
 

@@ -121,6 +121,94 @@ function Format-ConcatListPath([string]$Path) {
     return "'$escaped'"
 }
 
+function Get-InstagramIdFromFileName {
+    param([Parameter(Mandatory = $true)][string]$FileName)
+    $name = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+    $lastUnderscore = $name.LastIndexOf("_")
+    if ($lastUnderscore -lt 0 -or $lastUnderscore -ge ($name.Length - 1)) {
+        return ""
+    }
+    return $name.Substring($lastUnderscore + 1)
+}
+
+function ConvertTo-SingleLineText {
+    param([string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return "" }
+    return (($Value -replace "`r", " " -replace "`n", " ") -replace "\s+", " ").Trim()
+}
+
+function Escape-MarkdownText {
+    param([string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return "" }
+    $escaped = $Value -replace '\\', '\\'
+    $escaped = $escaped -replace '\|', '\|'
+    return $escaped
+}
+
+function Get-SourceVideoMetadata {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$VideoFile
+    )
+    $id = Get-InstagramIdFromFileName -FileName $VideoFile.Name
+    $metaPathByName = Join-Path $VideoFile.DirectoryName "$($VideoFile.Name).info.json"
+    $metaPathById = if ($id) { Join-Path $VideoFile.DirectoryName "$id.info.json" } else { "" }
+    $metaPath = ""
+    if (Test-Path -LiteralPath $metaPathByName) {
+        $metaPath = $metaPathByName
+    } elseif ($metaPathById -and (Test-Path -LiteralPath $metaPathById)) {
+        $metaPath = $metaPathById
+    }
+
+    $url = ""
+    $description = ""
+    if ($metaPath) {
+        try {
+            $metaRaw = Get-Content -LiteralPath $metaPath -Raw -Encoding UTF8
+            $meta = $metaRaw | ConvertFrom-Json -ErrorAction Stop
+            $url = ConvertTo-SingleLineText (($meta.webpage_url, $meta.original_url, $meta.url) | Where-Object { $_ } | Select-Object -First 1)
+            $description = ConvertTo-SingleLineText ($meta.description)
+        } catch {
+            # metadata okunamazsa akisi bozmadan devam et
+        }
+    }
+
+    return [pscustomobject]@{
+        Name = $VideoFile.Name
+        Url = $url
+        Description = $description
+    }
+}
+
+function Add-MergeNotes {
+    param(
+        [Parameter(Mandatory = $true)][string]$OutputVideoPath,
+        [Parameter(Mandatory = $true)][object[]]$Sources
+    )
+    $notesPath = Join-Path (Split-Path -LiteralPath $OutputVideoPath -Parent) "merge-notes.md"
+    if (-not (Test-Path -LiteralPath $notesPath)) {
+        Set-Content -LiteralPath $notesPath -Encoding UTF8 -Value @(
+            "# Birlestirme Notlari"
+            ""
+            "Bu dosya, olusturulan her cikti videosu icin kaynak link ve aciklama bilgisini listeler."
+            ""
+        )
+    }
+
+    Add-Content -LiteralPath $notesPath -Encoding UTF8 -Value "## $(Split-Path -Leaf $OutputVideoPath)"
+    Add-Content -LiteralPath $notesPath -Encoding UTF8 -Value ""
+    Add-Content -LiteralPath $notesPath -Encoding UTF8 -Value "| Kaynak Dosya | Link | Aciklama |"
+    Add-Content -LiteralPath $notesPath -Encoding UTF8 -Value "| --- | --- | --- |"
+    foreach ($src in $Sources) {
+        $safeName = Escape-MarkdownText (ConvertTo-SingleLineText $src.Name)
+        $safeUrl = Escape-MarkdownText (ConvertTo-SingleLineText $src.Url)
+        $safeDesc = Escape-MarkdownText (ConvertTo-SingleLineText $src.Description)
+        if (-not $safeUrl) { $safeUrl = "-" }
+        if (-not $safeDesc) { $safeDesc = "-" }
+        Add-Content -LiteralPath $notesPath -Encoding UTF8 -Value "| $safeName | $safeUrl | $safeDesc |"
+    }
+    Add-Content -LiteralPath $notesPath -Encoding UTF8 -Value ""
+}
+
 function Invoke-PairProcess {
     param(
         [System.IO.FileInfo]$FileA,

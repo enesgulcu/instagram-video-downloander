@@ -50,6 +50,7 @@ $inputPath = Join-Path $WorkspaceDir $InputDir
 $outputPath = Join-Path $WorkspaceDir $OutputDir
 $downloadScript = Join-Path $WorkspaceDir "download-instagram.ps1"
 $processScript = Join-Path $WorkspaceDir "process-videos.ps1"
+$mergeNotesScript = Join-Path $WorkspaceDir "build-merge-notes.ps1"
 $downloadReportFile = Join-Path $WorkspaceDir "download-report.csv"
 $processReportFile = Join-Path $WorkspaceDir "process-report.csv"
 $runReportPath = Join-Path $WorkspaceDir $RunReportFile
@@ -160,6 +161,14 @@ if (-not [string]::IsNullOrWhiteSpace($BgmFile)) {
 & powershell @processArgs
 if ($LASTEXITCODE -ne 0) {
     throw "Video isleme adimi basarisiz oldu."
+}
+
+if (Test-Path -LiteralPath $mergeNotesScript) {
+    Write-Host "Ek adim: merge-notes.md olusturuluyor..."
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $mergeNotesScript -InputDir $inputPath -OutputDir $outputPath
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "merge-notes.md olusturulamadi."
+    }
 }
 
 Write-Host ""

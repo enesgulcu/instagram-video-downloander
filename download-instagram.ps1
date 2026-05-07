@@ -157,6 +157,8 @@ $baseArgs = @(
     "--restrict-filenames",
     "--no-playlist",
     "--merge-output-format", "mp4",
+    "--write-info-json",
+    "--no-clean-infojson",
     "--add-metadata",
     "--download-archive", "$archiveFile",
     "-o", (Join-Path $OutputDir "%(uploader)s_%(id)s.%(ext)s")

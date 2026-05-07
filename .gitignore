@@ -1,0 +1,7 @@
+# Keep folders, ignore their contents
+input/*
+output/*
+
+# Keep placeholder files so folders can stay in git
+!input/.gitkeep
+!output/.gitkeep
