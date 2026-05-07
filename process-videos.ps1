@@ -144,18 +144,22 @@ function Invoke-PairProcess {
         $startA = [Math]::Max(0.0, $durationA - $cutA)
 
         $codecArgs = Get-VideoCodecArgs
-        $ffArgs = @("-y", "-ss", "$startA", "-i", "$($FileA.FullName)", "-t", "$cutA") + $codecArgs + @("-c:a", "aac", "-b:a", "128k", "$tailA")
+        # Concat demuxer stabilitesi icin tum ara segmentleri tek bir teknik profile normalize et.
+        $normVf = "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=30,format=yuv420p"
+        $normAudioArgs = @("-ar", "48000", "-ac", "2")
+
+        $ffArgs = @("-y", "-ss", "$startA", "-i", "$($FileA.FullName)", "-t", "$cutA", "-vf", "$normVf") + $codecArgs + @("-c:a", "aac", "-b:a", "128k") + $normAudioArgs + @("$tailA")
         Invoke-FFmpegOrThrow -FfmpegArgs $ffArgs
-        $ffArgs = @("-y", "-i", "$($FileA.FullName)") + $codecArgs + @("-c:a", "aac", "-b:a", "128k", "$fullA")
+        $ffArgs = @("-y", "-i", "$($FileA.FullName)", "-vf", "$normVf") + $codecArgs + @("-c:a", "aac", "-b:a", "128k") + $normAudioArgs + @("$fullA")
         Invoke-FFmpegOrThrow -FfmpegArgs $ffArgs
 
         $durationB = Get-VideoDurationSeconds -Path $FileB.FullName
         $cutB = [Math]::Min([Math]::Max($CutSeconds, 0.1), [Math]::Max($durationB - 0.1, 0.1))
         $startB = [Math]::Max(0.0, $durationB - $cutB)
 
-        $ffArgs = @("-y", "-ss", "$startB", "-i", "$($FileB.FullName)", "-t", "$cutB") + $codecArgs + @("-c:a", "aac", "-b:a", "128k", "$tailB")
+        $ffArgs = @("-y", "-ss", "$startB", "-i", "$($FileB.FullName)", "-t", "$cutB", "-vf", "$normVf") + $codecArgs + @("-c:a", "aac", "-b:a", "128k") + $normAudioArgs + @("$tailB")
         Invoke-FFmpegOrThrow -FfmpegArgs $ffArgs
-        $ffArgs = @("-y", "-i", "$($FileB.FullName)") + $codecArgs + @("-c:a", "aac", "-b:a", "128k", "$fullB")
+        $ffArgs = @("-y", "-i", "$($FileB.FullName)", "-vf", "$normVf") + $codecArgs + @("-c:a", "aac", "-b:a", "128k") + $normAudioArgs + @("$fullB")
         Invoke-FFmpegOrThrow -FfmpegArgs $ffArgs
 
         # Unicode yollari koru, fakat concat demuxer satirin basinda BOM kabul etmez.
@@ -192,7 +196,8 @@ function Invoke-PairProcess {
             $ffArgs = @("-y") + $concatInputArgs + @(
                 "-stream_loop", "-1", "-i", "$BgmFile",
                 "-filter_complex", "$fc",
-                "-map", "[v]", "-map", "[a]"
+                "-map", "[v]", "-map", "[a]",
+                "-r", "30"
             ) + $codecArgs + @(
                 "-c:a", "aac", "-b:a", "160k"
             )
@@ -205,7 +210,8 @@ function Invoke-PairProcess {
             $ffArgs = @("-y") + $concatInputArgs + @(
                 "-stream_loop", "-1", "-i", "$BgmFile",
                 "-filter_complex", "$fc",
-                "-map", "[v]", "-map", "[a]"
+                "-map", "[v]", "-map", "[a]",
+                "-r", "30"
             ) + $codecArgs + @(
                 "-c:a", "aac", "-b:a", "160k"
             )
@@ -217,7 +223,8 @@ function Invoke-PairProcess {
                 $fc = "[0:v]$videoFilter[v]"
                 $ffArgs = @("-y") + $concatInputArgs + @(
                     "-filter_complex", "$fc",
-                    "-map", "[v]", "-map", "0:a"
+                    "-map", "[v]", "-map", "0:a",
+                    "-r", "30"
                 ) + $codecArgs + @(
                     "-filter:a", "volume=${AudioGainDb}dB",
                     "-c:a", "aac", "-b:a", "160k"
@@ -229,7 +236,8 @@ function Invoke-PairProcess {
                 $fc = "[0:v]$videoFilter[v]"
                 $ffArgs = @("-y") + $concatInputArgs + @(
                     "-filter_complex", "$fc",
-                    "-map", "[v]"
+                    "-map", "[v]",
+                    "-r", "30"
                 ) + $codecArgs + @(
                     "-an"
                 )
