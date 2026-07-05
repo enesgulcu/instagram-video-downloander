@@ -16,7 +16,13 @@ $needFfmpeg = -not (Test-Tool -Name "ffmpeg")
 $needYtdlp = -not (Test-Tool -Name "yt-dlp")
 
 if (-not $needFfmpeg -and -not $needYtdlp) {
-    Write-Host "Tum temel araclar zaten kurulu."
+    Write-Host "Tum temel araclar zaten kurulu. yt-dlp guncelleniyor..."
+    try {
+        yt-dlp -U
+        Write-Host "yt-dlp guncelleme tamamlandi."
+    } catch {
+        Write-Warning "yt-dlp guncelleme basarisiz oldu: $_"
+    }
     exit 0
 }
 
@@ -28,6 +34,14 @@ if ($needFfmpeg) {
 if ($needYtdlp) {
     Write-Host "yt-dlp kuruluyor..."
     winget install -e --id yt-dlp.yt-dlp --accept-package-agreements --accept-source-agreements
+} else {
+    Write-Host "yt-dlp guncelleniyor..."
+    try {
+        yt-dlp -U
+        Write-Host "yt-dlp guncelleme tamamlandi."
+    } catch {
+        Write-Warning "yt-dlp guncelleme basarisiz oldu: $_"
+    }
 }
 
 Write-Host "Kurulum tamamlandi. Yeni terminal acarsan PATH guncel hali kullanilir."
